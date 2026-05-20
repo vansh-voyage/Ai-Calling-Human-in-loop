@@ -1,4 +1,5 @@
 import { BrowserRouter, Link, NavLink, Route, Routes } from 'react-router-dom'
+import { CallPage } from './pages/CallPage'
 import { Dashboard } from './pages/Dashboard'
 import { History } from './pages/History'
 import { KnowledgePage } from './pages/KnowledgePage'
@@ -7,6 +8,7 @@ const NAV_LINKS = [
   { to: '/dashboard', label: 'Dashboard' },
   { to: '/history', label: 'History' },
   { to: '/knowledge', label: 'Knowledge Base' },
+  { to: '/call', label: 'Call Maya' },
 ]
 
 function Layout() {
@@ -56,6 +58,7 @@ function Layout() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/history" element={<History />} />
           <Route path="/knowledge" element={<KnowledgePage />} />
+          <Route path="/call" element={<CallPage />} />
         </Routes>
       </main>
     </div>

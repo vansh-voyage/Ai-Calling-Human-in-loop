@@ -17,12 +17,14 @@ from livekit.agents import (
     WorkerOptions,
     cli,
 )
-from livekit.plugins import anthropic, cartesia, deepgram, silero
+from livekit.agents.voice.room_io import RoomOptions
+from livekit.plugins import cartesia, deepgram, google
+from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
 from agent.config import (
-    ANTHROPIC_API_KEY,
     CARTESIA_API_KEY,
     DEEPGRAM_API_KEY,
+    GOOGLE_API_KEY,
     LIVEKIT_API_KEY,
     LIVEKIT_API_SECRET,
     LIVEKIT_URL,
@@ -33,6 +35,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
 )
+logging.getLogger("livekit.plugins.deepgram").setLevel(logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
@@ -40,35 +43,51 @@ async def entrypoint(ctx: JobContext) -> None:
     await ctx.connect()
     logger.info("Agent connected to room: %s", ctx.room.name)
 
-    # Use the room name as the caller ID (simulates a phone number / session ID)
     caller_id = ctx.room.name
-    caller_name: str | None = None
 
-    # Try to pick up the caller's display name from room participants
-    for participant in ctx.room.remote_participants.values():
-        if participant.name:
-            caller_name = participant.name
-            break
+    # Properly subscribe to the participant's audio track using the recommended API
+    participant = await ctx.wait_for_participant()
+    caller_name: str | None = participant.name or None
 
     logger.info("Caller: %s (%s)", caller_name or "unknown", caller_id)
 
     agent = SalonAgent(caller_id=caller_id, caller_name=caller_name)
 
     session = AgentSession(
-        stt=deepgram.STT(api_key=DEEPGRAM_API_KEY, model="nova-3"),
-        llm=anthropic.LLM(api_key=ANTHROPIC_API_KEY, model="claude-sonnet-4-6"),
+        stt=deepgram.STT(api_key=DEEPGRAM_API_KEY, model="nova-3", language="en-US"),
+        llm=google.LLM(api_key=GOOGLE_API_KEY, model="gemini-2.0-flash"),
         tts=cartesia.TTS(api_key=CARTESIA_API_KEY),
-        vad=silero.VAD.load(),
+        turn_detection=MultilingualModel(),
     )
 
-    await session.start(room=ctx.room, agent=agent)
+    @session.on("user_input_transcribed")
+    def on_user_transcript(ev) -> None:
+        if ev.is_final:
+            logger.info("[USER ] %s", ev.transcript)
 
-    # Kick off the conversation with a warm greeting
-    await session.generate_reply(
-        instructions=(
-            "Greet the caller warmly, introduce yourself as Maya from Luxe Salon & Spa, "
-            "and ask how you can help them today. Keep it to 2 sentences."
+    @session.on("conversation_item_added")
+    def on_item_added(ev) -> None:
+        item = ev.item
+        role = getattr(item, "role", None)
+        if role == "user":
+            return
+        content = getattr(item, "content", None)
+        if not content:
+            return
+        text = content if isinstance(content, str) else " ".join(
+            str(c) for c in content if isinstance(c, str)
         )
+        if text.strip():
+            logger.info("[MAYA ] %s", text)
+
+    await session.start(
+        agent,
+        room=ctx.room,
+        room_options=RoomOptions(participant_identity=participant.identity),
+    )
+    await session.generate_reply(
+        instructions="Greet the caller warmly. Say something like: "
+        "'Hi! Welcome to Luxe Salon & Spa, I'm Maya your receptionist — how can I help you today?'"
     )
 
 

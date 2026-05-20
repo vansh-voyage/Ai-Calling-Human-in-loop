@@ -1,6 +1,6 @@
-livekit-agents[deepgram,anthropic,cartesia,silero,turn-detector]~=0.12
+livekit-agents[deepgram,google,cartesia,silero,turn-detector]~=1.0
 python-dotenv==1.0.1
-aiohttp==3.11.10
+aiohttp>=3.12
 
 # Dev / test
 pytest==8.3.3

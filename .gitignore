@@ -4,9 +4,7 @@ __pycache__/
 *.pyo
 *.pyd
 .Python
-env/
-venv/
-.venv/
+*venv*/
 *.egg-info/
 dist/
 build/
@@ -17,6 +15,7 @@ build/
 # Environment
 .env
 *.env.local
+*.env
 
 # Database
 *.db
@@ -27,6 +26,7 @@ build/
 node_modules/
 frontend/dist/
 frontend/.vite/
+frontend/*.local
 
 # IDE
 .vscode/
@@ -41,4 +41,8 @@ Thumbs.db
 # Logs
 *.log
 logs/
+
+# Claude
 CLAUDE.md
+.claude/
+DEMO_SCRIPT.md
